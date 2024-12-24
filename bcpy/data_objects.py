@@ -7,17 +7,16 @@ from .tmp_file import TemporaryFile
 
 
 class DataObject:
-    """Base object for data objects in bcpy
-    """
+    """Base object for data objects in bcpy"""
 
     def __init__(self, config):
         if config and not isinstance(config, dict):
-            raise TypeError('Config parameter must be a dictionary object')
+            raise TypeError("Config parameter must be a dictionary object")
 
     def __repr__(self):
-        output = str()
+        output = ""
         for attrib, value in self.__dict__.items():
-            output += f'{attrib} = {repr(value)}\n'
+            output += f"{attrib} = {repr(value)}\n"
         return output
 
     def __str__(self):
@@ -42,9 +41,9 @@ class FlatFile(DataObject):
                         if the if the file has header a line.
         """
         super().__init__(config)
-        self.delimiter = ','
-        self.qualifier = '\''
-        self.newline = '\n'
+        self.delimiter = ","
+        self.qualifier = "'"  # fmt: skip
+        self.newline = "\n"
         self.__columns = None
         self.path = None
         self.__format_file_path = None
@@ -55,7 +54,7 @@ class FlatFile(DataObject):
         for key, value in kwargs.items():
             setattr(self, key, value)
         if not self.qualifier:
-            self.qualifier = ''
+            self.qualifier = ""
 
     def __del__(self):
         """Removes the temporary format file that gets created before sending
@@ -72,15 +71,13 @@ class FlatFile(DataObject):
 
         Note: Caller of this method assumes that the file has headers.
         """
-        with open(self.path, encoding='utf-8-sig') as f:
+        with open(self.path, encoding="utf-8-sig") as f:
             header = f.readline()
-        qualifier_delimiter_combo = str.format('{0}{1}{0}', self.qualifier,
-                                               self.delimiter)
+        qualifier_delimiter_combo = str.format("{0}{1}{0}", self.qualifier, self.delimiter)
         columns_raw = header.split(qualifier_delimiter_combo)
         self.__columns = [columns_raw[0].lstrip(self.qualifier)]
         self.__columns.extend(columns_raw[1:-1])
-        self.__columns.append(
-            columns_raw[-1].rstrip(self.qualifier + self.newline))
+        self.__columns.append(columns_raw[-1].rstrip(self.qualifier + self.newline))
         self.file_has_header_line = True
 
     def get_format_file_path(self, recalculate=False):
@@ -93,15 +90,13 @@ class FlatFile(DataObject):
         """
         if not recalculate and self.__format_file_path:
             return self.__format_file_path
-        else:
-            try:
-                if self.__format_file_path:
-                    os.remove(self.__format_file_path)
-            except OSError:
-                pass
+        try:
+            if self.__format_file_path:
+                os.remove(self.__format_file_path)
+        except OSError:
+            pass
         if not self.columns:
-            raise Exception(
-                'Need the object columns or path to build the format file')
+            raise Exception("Need the object columns or path to build the format file")
         self.__format_file_path = self._build_format_file()
         return self.__format_file_path
 
@@ -111,12 +106,12 @@ class FlatFile(DataObject):
         :rtype: str
         """
         format_file_content = FormatFile.build_format_file(self)
-        with TemporaryFile(mode='w') as f:
+        with TemporaryFile(mode="w") as f:
             f.write(format_file_content)
             format_file_path = f.name
         return format_file_path
 
-    def _get_sql_create_statement(self, table_name=None, schema_name='dbo'):
+    def _get_sql_create_statement(self, table_name=None, schema_name="dbo"):
         """Creates a SQL drop and re-create statement corresponding to the
         columns list of the object.
 
@@ -128,15 +123,15 @@ class FlatFile(DataObject):
         """
         if not table_name:
             table_name = os.path.basename(self.path)
-        sql_cols = ','.join(
-            map(lambda x: f'[{x}] nvarchar(max)', self.columns))
-        sql_command = f"if object_id('[{schema_name}].[{table_name}]', 'U') " \
-            f"is not null drop table [{schema_name}].[{table_name}];" \
-            f'create table [{schema_name}].[{table_name}] ({sql_cols});'
+        sql_cols = ",".join(f"[{x}] nvarchar(max)" for x in self.columns)
+        sql_command = (
+            f"if object_id('[{schema_name}].[{table_name}]', 'U') "
+            f"is not null drop table [{schema_name}].[{table_name}];"
+            f"create table [{schema_name}].[{table_name}] ({sql_cols});"
+        )
         return sql_command
 
-    def to_sql(self, sql_table, use_existing_sql_table=False,
-               batch_size=10000):
+    def to_sql(self, sql_table, use_existing_sql_table=False, batch_size=10000):
         """Sends the object to SQL table
         :param sql_table: destination SQL table
         :type sql_table: SqlTable
@@ -151,12 +146,10 @@ class FlatFile(DataObject):
             sqlcmd(
                 server=sql_table.server,
                 database=sql_table.database,
-                command=self._get_sql_create_statement(
-                    table_name=sql_table.table,
-                    schema_name=sql_table.schema
-                ),
+                command=self._get_sql_create_statement(table_name=sql_table.table, schema_name=sql_table.schema),
                 username=sql_table.username,
-                password=sql_table.password)
+                password=sql_table.password,
+            )
         bcp(sql_table=sql_table, flat_file=self, batch_size=batch_size)
 
     @property
@@ -170,7 +163,7 @@ class FlatFile(DataObject):
         if isinstance(columns, list):
             self.__columns = columns
         else:
-            raise TypeError('Columns parameter must be a list of columns')
+            raise TypeError("Columns parameter must be a list of columns")
 
 
 class SqlServer(DataObject):
@@ -187,8 +180,8 @@ class SqlServer(DataObject):
         """
         # todo: make Sql Server one of the attributes of SqlTable
         super().__init__(config)
-        self.database = 'master'
-        self.server = 'localhost'
+        self.database = "master"
+        self.server = "localhost"
         self.username = None
         self.password = None
         if config:
@@ -203,10 +196,7 @@ class SqlServer(DataObject):
         :return: Kerberos authentication eligibility
         :rtype: bool
         """
-        if hasattr(self, 'username') and \
-                hasattr(self, 'password') and \
-                self.username and \
-                self.password:
+        if hasattr(self, "username") and hasattr(self, "password") and self.username and self.password:
             result = False
         else:
             result = True
@@ -226,11 +216,12 @@ class SqlServer(DataObject):
             database=self.database,
             command=command,
             username=self.username,
-            password=self.password)
+            password=self.password,
+        )
 
 
 class SqlTable(DataObject):
-    def __init__(self, config=None, schema_name='dbo', **kwargs):
+    def __init__(self, config=None, schema_name="dbo", **kwargs):
         """Leave the username and password to None to use Kerberos
         integrated authentication
         :param config: A dictionary object with the parameters.
@@ -259,11 +250,9 @@ class SqlTable(DataObject):
         for key, value in kwargs.items():
             setattr(self, key, value)
             input_args.add(key)
-        required_args = {'server', 'database', 'table'}
+        required_args = {"server", "database", "table"}
         if not required_args.issubset(input_args):
-            raise ValueError(
-                f'Missing arguments in kwargs and config. '
-                f'Need {required_args}')
+            raise ValueError(f"Missing arguments in kwargs and config. " f"Need {required_args}")
 
     @property
     def with_krb_auth(self):
@@ -271,10 +260,7 @@ class SqlTable(DataObject):
         :return: Kerberos authentication eligibility
         :rtype: bool
         """
-        if (hasattr(self, 'username')
-            and hasattr(self, 'password')
-            and self.username
-                and self.password):
+        if hasattr(self, "username") and hasattr(self, "password") and self.username and self.password:
             result = False
         else:
             result = True
@@ -282,20 +268,18 @@ class SqlTable(DataObject):
 
 
 class DataFrame(DataObject):
-    """Wrapper for pandas.DataFrame objects
-    """
+    """Wrapper for pandas.DataFrame objects"""
 
     def __init__(self, df):
         """
         :param df: DataFrame object
         :type df: pandas.DataFrame
         """
-        super().__init__(dict())
+        super().__init__({})
         self._df = df
         self._flat_file_object = None
 
-    def to_sql(self, sql_table, index=False, use_existing_sql_table=False,
-               batch_size=10000):
+    def to_sql(self, sql_table, index=False, use_existing_sql_table=False, batch_size=10000):
         """Sends the object to SQL Server.
         :param sql_table: destination SQL Server table
         :type sql_table: SqlTable
@@ -308,26 +292,22 @@ class DataFrame(DataObject):
         :param batch_size: Batch size (chunk size) to send to SQL Server
         :type batch_size: int
         """
-        delimiter = ','
+        delimiter = ","
         qualifier = '"'
-        newline = '\n'
+        newline = "\n"
         csv_file_path = TemporaryFile.get_tmp_file()
         self._df.to_csv(
             index=index,
             sep=delimiter,
             quotechar=qualifier,
             quoting=csv.QUOTE_ALL,
-            line_terminator=newline,
-            path_or_buf=csv_file_path)
-        self._flat_file_object = FlatFile(
-            delimiter=',',
-            qualifier=qualifier,
-            newline=newline,
-            path=csv_file_path)
+            lineterminator=newline,
+            path_or_buf=csv_file_path,
+        )
+        self._flat_file_object = FlatFile(delimiter=",", qualifier=qualifier, newline=newline, path=csv_file_path)
         try:
             self._flat_file_object.to_sql(
-                sql_table,
-                use_existing_sql_table=use_existing_sql_table,
-                batch_size=batch_size)
+                sql_table, use_existing_sql_table=use_existing_sql_table, batch_size=batch_size
+            )
         finally:
             os.remove(csv_file_path)
