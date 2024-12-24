@@ -1,18 +1,17 @@
-import subprocess
-from io import StringIO
 import hashlib
+import subprocess  # noqa # nosec
+from io import StringIO
 
 import pandas as pd
 
 
-def sha512(text, encoding='utf-8'):
-    """Converts an input string to its sha512 hash
-    """
+def sha512(text, encoding="utf-8"):
+    """Converts an input string to its sha512 hash"""
     if not isinstance(text, bytes):
         if isinstance(text, str):
             text = text.encode(encoding)
         else:
-            raise ValueError('Invalid input. Cannot compute hash.')
+            raise ValueError("Invalid input. Cannot compute hash.")
     return hashlib.sha512(text).hexdigest()
 
 
@@ -26,31 +25,34 @@ def bcp(sql_table, flat_file, batch_size):
     :param batch_size: Batch size (chunk size) to send to SQL Server
     :type batch_size: int
     """
-    if sql_table.with_krb_auth:
-        auth = ['-T']
-    else:
-        auth = ['-U', sql_table.username, '-P', sql_table.password]
-    full_table_string = \
-        f'{sql_table.database}.{sql_table.schema}.{sql_table.table}'
+    auth = ["-T"] if sql_table.with_krb_auth else ["-U", sql_table.username, "-P", sql_table.password]
+    full_table_string = f"{sql_table.database}.{sql_table.schema}.{sql_table.table}"
     try:
-        bcp_command = ['bcp', full_table_string, 'IN', flat_file.path, '-f',
-                       flat_file.get_format_file_path(), '-S',
-                       sql_table.server, '-b', str(batch_size)] + auth
+        bcp_command = [
+            "bcp",
+            full_table_string,
+            "IN",
+            flat_file.path,
+            "-f",
+            flat_file.get_format_file_path(),
+            "-S",
+            sql_table.server,
+            "-b",
+            str(batch_size),
+        ] + auth
     except Exception as e:
-        args_clean = list()
+        args_clean = []
         for arg in e.args:
             if isinstance(arg, str):
-                arg = arg.replace(sql_table.password,
-                                  sha512(sql_table.password))
+                arg = arg.replace(sql_table.password, sha512(sql_table.password))
             args_clean.append(arg)
         e.args = tuple(args_clean)
         raise e
     if flat_file.file_has_header_line:
-        bcp_command += ['-F', '2']
-    result = subprocess.run(bcp_command, stderr=subprocess.PIPE)
+        bcp_command += ["-F", "2"]
+    result = subprocess.run(bcp_command, stderr=subprocess.PIPE)  # nosec #noqa
     if result.returncode:
-        raise Exception(
-            f'Bcp command failed. Details:\n{result}')
+        raise Exception(f"Bcp command failed. Details:\n{result}")
 
 
 def sqlcmd(server, database, command, username=None, password=None):
@@ -72,30 +74,19 @@ def sqlcmd(server, database, command, username=None, password=None):
              if the output does not return anything.
     :rtype: Pandas.DataFrame
     """
-    if not username or not password:
-        auth = ['-E']
-    else:
-        auth = ['-U', username, '-P', password]
-    command = 'set nocount on;' + command
-    sqlcmd_command = ['sqlcmd', '-S', server, '-d', database, '-b'] + auth + \
-                     ['-s,', '-W', '-Q', command]
-    result = subprocess.run(sqlcmd_command, stdout=subprocess.PIPE,
-                            stderr=subprocess.PIPE)
+    auth = ["-E"] if not username or not password else ["-U", username, "-P", password]
+    command = "set nocount on;" + command
+    sqlcmd_command = ["sqlcmd", "-S", server, "-d", database, "-b"] + auth + ["-s,", "-W", "-Q", command]
+    result = subprocess.run(sqlcmd_command, capture_output=True)  # nosec # noqa
     if result.returncode:
         result_dump = str(result).replace(password, sha512(password))
-        raise Exception(f'Sqlcmd command failed. Details:\n{result_dump}')
-    output = StringIO(result.stdout.decode('ascii'))
+        raise Exception(f"Sqlcmd command failed. Details:\n{result_dump}")
+    output = StringIO(result.stdout.decode("ascii"))
     first_line_output = output.readline().strip()
-    if first_line_output == '':
-        header = None
-    else:
-        header = 'infer'
+    header = None if first_line_output == "" else "infer"
     output.seek(0)
     try:
-        result = pd.read_csv(
-            filepath_or_buffer=output,
-            skiprows=[1],
-            header=header)
+        result = pd.read_csv(filepath_or_buffer=output, skiprows=[1], header=header)
     except pd.errors.EmptyDataError:
         result = None
     return result
