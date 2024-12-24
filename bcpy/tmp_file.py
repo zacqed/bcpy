@@ -1,16 +1,17 @@
 import os
-import random
 import string
 import sys
 import tempfile
+
+import numpy as np
 
 
 class TemporaryFile:
     tmp_dir = None
 
-    def __init__(self, mode='w'):
+    def __init__(self, mode="w"):
         self._file_path = self.get_tmp_file()
-        self._tmp_file = open(self._file_path, mode)
+        self._tmp_file = open(self._file_path, mode)  # noqa
 
     def __enter__(self):
         return self._tmp_file
@@ -26,13 +27,13 @@ class TemporaryFile:
         """
         if cls.tmp_dir:
             tmp_dir = cls.tmp_dir
-        elif sys.platform == 'linux':
+        elif sys.platform == "linux":
             try:
-                tmp_dir = os.environ['XDG_RUNTIME_DIR']
+                tmp_dir = os.environ["XDG_RUNTIME_DIR"]
             except KeyError:
                 tmp_dir = None
             if not tmp_dir:
-                tmp_dir = '/dev/shm'
+                tmp_dir = "/dev/shm"
         else:
             tmp_dir = tempfile.gettempdir()
         return tmp_dir
@@ -44,6 +45,7 @@ class TemporaryFile:
         :rtype: str
         """
         tmp_dir = cls._get_tmp_dir()
-        file_path = os.path.join(tmp_dir, ''.join(
-            random.choices(string.ascii_letters + string.digits, k=21)))
+        file_path = os.path.join(
+            tmp_dir, "".join(np.random.choice(list(string.ascii_letters + string.digits), size=21))
+        )
         return file_path
